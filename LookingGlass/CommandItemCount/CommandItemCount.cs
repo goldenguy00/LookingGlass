@@ -4,7 +4,6 @@ using RoR2.UI;
 using RoR2;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Collections.ObjectModel;
 using UnityEngine;
 using BepInEx.Configuration;
@@ -14,7 +13,6 @@ using RiskOfOptions.Options;
 using RiskOfOptions;
 using RoR2.Items;
 using System.Reflection;
-using System.Linq;
 
 namespace LookingGlass.CommandItemCount
 {

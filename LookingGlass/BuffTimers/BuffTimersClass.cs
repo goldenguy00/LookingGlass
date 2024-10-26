@@ -8,11 +8,7 @@ using RiskOfOptions.Options;
 using RoR2;
 using RoR2.UI;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using TMPro;
-using UnityEngine;
-using static RoR2.CharacterBody;
 
 namespace LookingGlass.BuffTimers
 {
@@ -45,24 +41,25 @@ namespace LookingGlass.BuffTimers
         void UpdateLayout(Action<BuffDisplay> orig, BuffDisplay self)
         {
             orig(self);
-            if (self.source && StatsDisplayClass.cachedUserBody && buffTimers.Value)
+            if (self.source && buffTimers.Value)
             {
-                foreach (var buffIcon in self.buffIconDisplayData)
+                var body = LocalUserManager.GetFirstLocalUser()?.cachedBody;
+                if (body)
                 {
-                    foreach (var timedBuff in StatsDisplayClass.cachedUserBody.timedBuffs)
+                    foreach (var buffIcon in self.buffIconDisplayData)
                     {
-                        if (timedBuff.buffIndex == buffIcon.buffDef.buffIndex)
+                        foreach (var timedBuff in body.timedBuffs)
                         {
-                            TextMeshProUGUI item = buffIcon.buffIconComponent.GetComponentInChildren<TextMeshProUGUI>();
-                            item.enabled = true;
-                            item.text = $"<size={buffTimersFontSize.Value}%>{(timedBuff.timer):0.0}</size>\n";
-                            if (buffIcon.buffCount > 1)
+                            if (timedBuff.buffIndex == buffIcon.buffDef.buffIndex)
                             {
-                                item.text += $"x{buffIcon.buffCount}";
-                            }
-                            else
-                            {
-                                item.text += " ";
+                                var item = buffIcon.buffIconComponent.GetComponentInChildren<TextMeshProUGUI>();
+                                item.enabled = true;
+                                item.text = $"<size={buffTimersFontSize.Value}%>{(timedBuff.timer):0.0}</size>\n";
+
+                                if (buffIcon.buffCount > 1)
+                                    item.text += $"x{buffIcon.buffCount}";
+                                else
+                                    item.text += " ";
                             }
                         }
                     }

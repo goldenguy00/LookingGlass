@@ -5,12 +5,9 @@ using MonoMod.RuntimeDetour;
 using RoR2;
 using RoR2.UI;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using RiskOfOptions.OptionConfigs;
 using RiskOfOptions.Options;
 using RiskOfOptions;
-using static Rewired.InputMapper;
 using System.Collections.ObjectModel;
 
 namespace LookingGlass.CommandWindowBlur

@@ -4,12 +4,8 @@ using RiskOfOptions.OptionConfigs;
 using RiskOfOptions.Options;
 using RiskOfOptions;
 using RoR2;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
-using RoR2.UI;
 using System.Collections;
 
 namespace LookingGlass.ResizeCommandWindow

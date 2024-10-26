@@ -1,6 +1,5 @@
 ﻿using LookingGlass.ItemStatsNameSpace;
 using RoR2;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -36,9 +35,9 @@ namespace LookingGlass
         public static float GetLuckFromCachedUserBody(CharacterBody cachedUserBody)
         {
             // Check for modded luck values
-            if (cachedUserBody && cachedUserBody.master) return cachedUserBody.master.luck;
-
-            return cachedUserBody.inventory.GetItemCount(RoR2Content.Items.Clover) - cachedUserBody.inventory.GetItemCount(RoR2Content.Items.LunarBadLuck);
+            return cachedUserBody && cachedUserBody.master
+                ? cachedUserBody.master.luck
+                : cachedUserBody.inventory.GetItemCount(RoR2Content.Items.Clover) - cachedUserBody.inventory.GetItemCount(RoR2Content.Items.LunarBadLuck);
         }
 
         public static float GetExponentialRechargeTime(float baseCooldown, float extraPercent, int count)

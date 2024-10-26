@@ -9,14 +9,10 @@ using RoR2;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using RoR2.UI;
-using static Rewired.InputMapper;
 using System.Collections.ObjectModel;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.UIElements;
-using LookingGlass.ResizeCommandWindow;
 using System.Collections;
 using UnityEngine.EventSystems;
 

@@ -17,11 +17,10 @@ using LookingGlass.StatsDisplay;
 using RiskOfOptions;
 using RoR2;
 using RoR2.UI;
+using System;
 using System.Collections;
 using System.IO;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
-using static RoR2.HealthComponent;
 
 namespace LookingGlass
 {
@@ -64,14 +63,16 @@ namespace LookingGlass
                     }
                     i2++;
                 }
-                Texture2D t = LoadTexture(logo, 256, 256);
-                logo2 = Sprite.Create(t, new Rect(0.00f, 0.00f, t.width, t.height), new Vector2(0, 0), 100, 1, SpriteMeshType.Tight, new Vector4(0, 0, 0, 0), true);
-                ModSettingsManager.SetModIcon(logo2);
+
+                var tex = new Texture2D(256, 256, TextureFormat.ARGB32, false, false);
+                tex.LoadImage(logo);
+                tex.filterMode = FilterMode.Point;
+
+                ModSettingsManager.SetModIcon(Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0, 0), 100, 1, SpriteMeshType.Tight, new Vector4(0, 0, 0, 0), true));
             }
             catch (System.Exception)
             {
             }
-
 
             autoSortItems = new AutoSortItemsClass();
             noWindowBlur = new NoWindowBlur();
@@ -102,26 +103,32 @@ namespace LookingGlass
             }
             dpsMeter.Update();
         }
-        
-        IEnumerator CheckPlayerStats()
+
+        internal IEnumerator CheckPlayerStats()
         {
-            yield return new WaitForSeconds(StatsDisplayClass.statsDisplayUpdateInterval.Value);
-            try
+            while (true)
             {
-                statsDisplayClass.CalculateStuff();
+                yield return new WaitForSeconds(StatsDisplayClass.statsDisplayUpdateInterval.Value);
+
+                if (StatsDisplayClass.statsDisplay.Value)
+                {
+                    yield return statsDisplayClass.CalculateStuff();
+                }
             }
-            catch (System.Exception e)
-            {
-                Debug.Log($"Attempted to update stats but got exception: {e}");
-            }
-            StartCoroutine(CheckPlayerStats());
         }
-        public static Texture2D LoadTexture(byte[] bytes, int width, int height)
+
+        internal void hook_OnEnable(Action<ScoreboardController> orig, ScoreboardController self)
         {
-            Texture2D Tex2D = new Texture2D(width, height, TextureFormat.ARGB32, false, false);
-            Tex2D.LoadImage(bytes);
-            Tex2D.filterMode = FilterMode.Point;
-            return Tex2D;
+            statsDisplayClass.scoreBoardOpen = true;
+            StartCoroutine(statsDisplayClass.CalculateStuff());
+            orig(self);
+        }
+
+        internal void hook_OnDisable(Action<ScoreboardController> orig, ScoreboardController self)
+        {
+            statsDisplayClass.scoreBoardOpen = false;
+            StartCoroutine(statsDisplayClass.CalculateStuff());
+            orig(self);
         }
     }
 }

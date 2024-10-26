@@ -9,13 +9,8 @@ using RoR2.UI;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using static RoR2.Chat;
 using System.Linq;
 using LookingGlass.StatsDisplay;
-using RoR2.Skills;
-using System.Security.Cryptography;
-using LookingGlass.ItemStatsNameSpace;
-using UnityEngine;
 
 namespace LookingGlass.ItemStatsNameSpace
 {
@@ -88,7 +83,8 @@ namespace LookingGlass.ItemStatsNameSpace
 
         internal void EquipText(EquipmentIcon self)
         {
-            CharacterBody body = StatsDisplayClass.cachedUserBody;
+            CharacterBody body = LocalUserManager.GetFirstLocalUser()?.cachedBody;
+
             // Multiplayer compatibility
             if (self.targetInventory)
             {

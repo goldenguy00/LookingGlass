@@ -1,13 +1,9 @@
 ﻿using BepInEx.Configuration;
 using LookingGlass.Base;
-using LookingGlass.BuffDescriptions;
 using MonoMod.RuntimeDetour;
 using RoR2;
-using RoR2.UI;
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 
 namespace LookingGlass.DPSMeterStuff

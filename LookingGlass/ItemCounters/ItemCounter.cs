@@ -4,7 +4,6 @@ using RiskOfOptions.OptionConfigs;
 using RiskOfOptions.Options;
 using RiskOfOptions;
 using System;
-using System.Collections.Generic;
 using System.Text;
 using MonoMod.RuntimeDetour;
 using RoR2.UI;

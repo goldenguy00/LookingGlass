@@ -5,8 +5,6 @@ using RiskOfOptions.Options;
 using RiskOfOptions;
 using RoR2;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using BepInEx.Configuration;
 using LookingGlass.HidePickupNotifs;
 

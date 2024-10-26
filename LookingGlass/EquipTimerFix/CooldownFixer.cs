@@ -6,8 +6,6 @@ using RiskOfOptions.Options;
 using RiskOfOptions;
 using RoR2.UI;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using LookingGlass.ItemStatsNameSpace;
 

@@ -1,8 +1,5 @@
-﻿using LookingGlass.ItemStatsNameSpace;
-using RoR2;
-using System;
+﻿using RoR2;
 using System.Collections.Generic;
-using System.Text;
 
 namespace LookingGlass.ItemStatsNameSpace
 {

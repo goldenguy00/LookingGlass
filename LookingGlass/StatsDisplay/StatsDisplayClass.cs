@@ -5,16 +5,17 @@ using RiskOfOptions.Options;
 using RiskOfOptions;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using RoR2;
 using System.Text.RegularExpressions;
 using RoR2.UI;
 using UnityEngine.UI;
 using UnityEngine;
-using System.Linq;
 using TMPro;
 using MonoMod.RuntimeDetour;
 using System.Collections;
+using System.Linq;
+using System.Text;
+using System.Diagnostics;
 
 namespace LookingGlass.StatsDisplay
 {
@@ -30,8 +31,8 @@ namespace LookingGlass.StatsDisplay
         public static ConfigEntry<bool> statsDisplayOverrideHeight;
         public static ConfigEntry<int> statsDisplayOverrideHeightValue;
         public static ConfigEntry<int> floatPrecision;
-        public static Dictionary<string, Func<CharacterBody, string>> statDictionary = new Dictionary<string, Func<CharacterBody, string>>();
-        internal static CharacterBody cachedUserBody = null;
+        public static Dictionary<string, Func<CharacterBody, string>> statDictionary = [];
+        public static Dictionary<Regex, Func<CharacterBody, string>> statDictionaryCompiled = [];
         Transform statTracker = null;
         TextMeshProUGUI textComponent;
         GameObject textComponentGameObject;
@@ -39,7 +40,7 @@ namespace LookingGlass.StatsDisplay
         Image cachedImage;
         private static Hook overrideHook;
         private static Hook overrideHook2;
-        bool scoreBoardOpen = false;
+        internal bool scoreBoardOpen = false;
 
         public StatsDisplayClass()
         {
@@ -94,27 +95,16 @@ namespace LookingGlass.StatsDisplay
                 "<size=50%>Gold:[goldPortal] Shop:[shopPortal] Celestial:[msPortal] Void:[voidPortal]</size>"
                 , $"Secondary string for the stats display. You can customize this with Unity Rich Text if you want, see \n https://docs.unity3d.com/Packages/com.unity.textmeshpro@4.0/manual/RichText.html for more info. \nAvailable syntax for the [] stuff is: {syntaxList}");
             StatsDisplayDefinitions.SetupDefs();
+            StatsDisplayDefinitions.SetupDefsCompiled();
 
             var targetMethod = typeof(ScoreboardController).GetMethod(nameof(ScoreboardController.OnEnable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var destMethod = typeof(StatsDisplayClass).GetMethod(nameof(OnEnable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var destMethod = typeof(BasePlugin).GetMethod(nameof(BasePlugin.hook_OnEnable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             overrideHook = new Hook(targetMethod, destMethod, this);
             targetMethod = typeof(ScoreboardController).GetMethod(nameof(ScoreboardController.OnDisable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            destMethod = typeof(StatsDisplayClass).GetMethod(nameof(OnDisable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            destMethod = typeof(BasePlugin).GetMethod(nameof(BasePlugin.hook_OnDisable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             overrideHook2 = new Hook(targetMethod, destMethod, this);
         }
 
-        void OnEnable(Action<ScoreboardController> orig, ScoreboardController self)
-        {
-            scoreBoardOpen = true;
-            CalculateStuff();
-            orig(self);
-        }
-        void OnDisable(Action<ScoreboardController> orig, ScoreboardController self)
-        {
-            scoreBoardOpen = false;
-            CalculateStuff();
-            orig(self);
-        }
         private void BuiltInColors_SettingChanged(object sender, EventArgs e)
         {
             StatsDisplayDefinitions.SetupDefs();
@@ -137,142 +127,220 @@ namespace LookingGlass.StatsDisplay
         bool isRiskUI = false;
         float originalFontSize = -1;
         VerticalLayoutGroup layoutGroup;
-        public void CalculateStuff()
+
+        public IEnumerator CalculateStuff()
         {
-            if (!cachedUserBody)
+            if (!statsDisplay.Value || !Run.instance)
+                yield break;
+
+            if (!statTracker)
             {
-                try
+                var hud = HUD.readOnlyInstanceList?.FirstOrDefault();
+                if (!hud || !hud.gameModeUiInstance)
+                    yield break;
+
+                var childLoc = hud.gameModeUiInstance.GetComponent<ChildLocator>();
+                if (childLoc)
                 {
-                    cachedUserBody = LocalUserManager.GetFirstLocalUser().cachedBody;
-                }
-                catch (Exception)
-                {
+                    yield return CreateStatTracker(childLoc.FindChild("RightInfoBar"));
                 }
             }
-            if (!statsDisplay.Value)
-                return;
-            if (cachedUserBody)
+
+            var cachedUserBody = LocalUserManager.GetFirstLocalUser()?.cachedBody;
+
+            if (!cachedUserBody)
+                yield break;
+
+            yield return UpdateStatDisplay(cachedUserBody);
+        }
+
+        IEnumerator UpdateStatDisplay(CharacterBody cachedUserBody)
+        {
+            if (textComponentGameObject)
+                textComponentGameObject.SetActive(true);
+
+            if (textComponent && layoutElement)
             {
-                string stats = useSecondaryStatsDisplay.Value && scoreBoardOpen ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
+                var s = Stopwatch.StartNew();
+                var stats = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
                 foreach (var item in statDictionary.Keys)
                 {
                     stats = Regex.Replace(stats, $@"(?<!\\)\[{item}\]", statDictionary[item](cachedUserBody));
                 }
-                if (!statTracker)
-                {
-                    foreach (var item in RoR2.Run.instance.uiInstances[0].GetComponentsInChildren<VerticalLayoutGroup>())
-                    {
-                        if (item.gameObject.name == "RightInfoBar")
-                        {
-                            Transform objectivePanel = item.transform.Find("ObjectivePanel");
-                            GameObject labelObject = objectivePanel.Find("Label") ? objectivePanel.Find("Label").gameObject : null;
-                            bool originalActiveState = false;
-                            if (labelObject)
-                            {
-                                originalActiveState = labelObject.activeSelf;
-                                labelObject.SetActive(true);
-                            }
-                            GameObject g = GameObject.Instantiate(objectivePanel.gameObject);
-                            g.transform.parent = objectivePanel.parent.transform;
-                            g.name = "PlayerStats";
-                            if (labelObject)
-                            {
-                                labelObject.SetActive(originalActiveState);
-                            }
 
-                            if (g.transform.Find("StripContainer"))
-                                GameObject.Destroy(g.transform.Find("StripContainer").gameObject);
-                            if (g.transform.Find("Minimap"))
-                                GameObject.DestroyImmediate(g.transform.Find("Minimap").gameObject);
-                            if (g.GetComponent<HudObjectiveTargetSetter>())
-                                UnityEngine.Object.Destroy(g.GetComponent<HudObjectiveTargetSetter>());
-                            if (g.GetComponent<ObjectivePanelController>())
-                                UnityEngine.Object.Destroy(g.GetComponent<ObjectivePanelController>());
+                textComponent.text = stats;
+                s.Stop();
+                Log.Warning($"Original: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
 
-                            RectTransform r = g.GetComponent<RectTransform>();
-                            layoutGroup = g.GetComponent<VerticalLayoutGroup>();
-                            textComponent = g.GetComponentInChildren<TextMeshProUGUI>();
-                            layoutElement = g.GetComponentInChildren<LayoutElement>();
+                //
+                //
+                //
 
-                            if (!r || !layoutGroup || !textComponent || !layoutElement)
-                            {
-                                layoutGroup = null;
-                                textComponent = null;
-                                layoutElement = null;
-                                GameObject.DestroyImmediate(g);
-                                break;
-                            }
-                            r.localPosition = Vector3.zero;
-                            r.localEulerAngles = Vector3.zero;
-                            r.localScale = Vector3.one;
-                            layoutGroup.enabled = false;
-                            layoutGroup.enabled = true;
-                            textComponent.alignment = TMPro.TextAlignmentOptions.TopLeft;
-                            textComponent.color = Color.white;
-                            textComponentGameObject = textComponent.gameObject;
+                s.Restart();
+                var stats2 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
+                foreach (var item in statDictionary.Keys)
+                {
+                    stats2 = Regex.Replace(stats2, $@"(?<!\\)\[{item}\]", statDictionary[item](cachedUserBody));
+                    s.Stop();
+                    yield return null;
+                    s.Start();
+                }
 
-                            if (g.transform.Find("Seperator"))
-                            {
-                                isRiskUI = true;
-                                VerticalLayoutGroup v = g.transform.Find("Seperator").GetComponent<VerticalLayoutGroup>();
-                                v.padding.top = 0;
-                                v.childAlignment = TextAnchor.UpperLeft;
-                            }
-                            statTracker = g.transform;
-                            break;
-                        }
-                    }
-                }
-                if (textComponentGameObject)
+                textComponent.text = stats2;
+                s.Stop();
+                Log.Warning($"Yielding: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
+
+                //
+                //
+                //
+
+                s.Restart();
+                var stats3 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
+                stats3 = Regex.Replace(stats3, String.Join("|", statDictionary.Keys.Select(Regex.Escape).ToArray()), m => statDictionary[m.Value](cachedUserBody), RegexOptions.IgnoreCase);
+
+                textComponent.text = stats3;
+                s.Stop();
+                Log.Warning($"InternetGuy: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
+
+                //
+                //
+                //
+
+                s.Restart();
+                var stats4 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
+                var sb = HG.StringBuilderPool.RentStringBuilder();
+                sb.AppendJoin("|", statDictionary.Keys.Select(s => $@"(?<!\\)\[{s}\]"));
+                stats3 = Regex.Replace(stats3, sb.ToString(), m => statDictionary[m.Value](cachedUserBody), RegexOptions.IgnoreCase);
+
+                textComponent.text = stats3;
+                s.Stop();
+                Log.Warning($"InternetGuy Again: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
+
+                //
+                //
+                //
+                s.Restart();
+                var stats5 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
+
+                foreach (var item in statDictionaryCompiled)
                 {
-                    //Log.Debug($"Somebody disabled my object :(");
-                    textComponentGameObject.SetActive(true);
+                    stats5 = item.Key.Replace(stats5, item.Value(cachedUserBody));
+                    s.Stop();
+                    yield return null;
+                    s.Start();
                 }
-                if (textComponent && layoutElement)
-                {
-                    textComponent.text = stats;
-                    int nlines = statsDisplayOverrideHeight.Value
-                        ? statsDisplayOverrideHeightValue.Value
-                        : stats.Split('\n').Length;
-                    if (originalFontSize == -1)
-                    {
-                        originalFontSize = textComponent.fontSize;
-                    }
-                    textComponent.fontSize = statsDisplaySize.Value == -1 ? originalFontSize : statsDisplaySize.Value;
-                    Run.instance.StartCoroutine(FixScaleAfterFrame(nlines));
-                    if (!cachedImage)
-                    {
-                        cachedImage = layoutElement.transform.parent.GetComponent<Image>();
-                    }
-                    if (cachedImage)
-                    {
-                        cachedImage.enabled = nlines != 0;
-                    }
-                    if (isRiskUI && layoutGroup)
-                    {
-                        layoutGroup.padding.bottom = (int)((nlines / 16f) * 50);
-                    }
-                }
-                else
-                {
-                    layoutGroup = null;
-                    textComponent = null;
-                    layoutElement = null;
-                    if (statTracker)
-                    {
-                        Log.Debug($"Somehow statTracker [{statTracker.gameObject.name}] got set but other items didn't attempting to delete it and try again.");
-                        GameObject.DestroyImmediate(statTracker.gameObject);
-                    }
-                }
-                //Log.Debug(stats);
+
+                textComponent.text = stats5;
+                s.Stop();
+                Log.Warning($"Compiled: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
+
+
+                int nlines = statsDisplayOverrideHeight.Value
+                    ? statsDisplayOverrideHeightValue.Value
+                    : stats.Split('\n').Length;
+
+                if (originalFontSize == -1)
+                    originalFontSize = textComponent.fontSize;
+
+                textComponent.fontSize = statsDisplaySize.Value == -1 ? originalFontSize : statsDisplaySize.Value;
+
+                Run.instance.StartCoroutine(FixScaleAfterFrame(nlines));
+
+                if (!cachedImage)
+                    cachedImage = layoutElement.transform.parent.GetComponent<Image>();
+
+                if (cachedImage)
+                    cachedImage.enabled = nlines != 0;
+
+                if (isRiskUI && layoutGroup)
+                    layoutGroup.padding.bottom = (int)((nlines / 16f) * 50);
             }
+            else
+            {
+                layoutGroup = null;
+                textComponent = null;
+                layoutElement = null;
+                if (statTracker)
+                {
+                    Log.Debug($"Somehow statTracker [{statTracker.gameObject.name}] got set but other items didn't attempting to delete it and try again.");
+                    GameObject.DestroyImmediate(statTracker.gameObject);
+                }
+            }
+
+            yield return null;
         }
+
+        IEnumerator CreateStatTracker(Transform rightInfoBar)
+        {
+            if (!rightInfoBar)
+                yield break;
+
+            var objectivePanel = rightInfoBar.Find("ObjectivePanel");
+            if (!objectivePanel)
+                yield break;
+
+            var stats = GameObject.Instantiate(objectivePanel.gameObject, rightInfoBar);
+            stats.name = "PlayerStats";
+
+            if (stats.transform.Find("Label"))
+                stats.transform.Find("Label").gameObject.SetActive(true);
+
+            if (stats.transform.Find("StripContainer"))
+                GameObject.Destroy(stats.transform.Find("StripContainer").gameObject);
+
+            if (stats.transform.Find("Minimap"))
+                GameObject.DestroyImmediate(stats.transform.Find("Minimap").gameObject);
+
+            if (stats.TryGetComponent<HudObjectiveTargetSetter>(out var targetComp))
+                UnityEngine.Object.Destroy(targetComp);
+
+            if (stats.TryGetComponent<ObjectivePanelController>(out var objComp))
+                UnityEngine.Object.Destroy(objComp);
+
+            var rect = stats.GetComponent<RectTransform>();
+            layoutGroup = stats.GetComponent<VerticalLayoutGroup>();
+            textComponent = stats.GetComponentInChildren<TextMeshProUGUI>();
+            layoutElement = stats.GetComponentInChildren<LayoutElement>();
+
+            if (!rect || !layoutGroup || !textComponent || !layoutElement)
+            {
+                layoutGroup = null;
+                textComponent = null;
+                layoutElement = null;
+                GameObject.DestroyImmediate(stats);
+                yield break;
+            }
+
+            rect.localPosition = Vector3.zero;
+            rect.localEulerAngles = Vector3.zero;
+            rect.localScale = Vector3.one;
+
+            layoutGroup.enabled = false;
+            layoutGroup.enabled = true;
+
+            textComponent.alignment = TMPro.TextAlignmentOptions.TopLeft;
+            textComponent.color = Color.white;
+            textComponentGameObject = textComponent.gameObject;
+
+            if (stats.transform.Find("Seperator"))
+            {
+                isRiskUI = true;
+                var layout = stats.transform.Find("Seperator").GetComponent<VerticalLayoutGroup>();
+                layout.padding.top = 0;
+                layout.childAlignment = TextAnchor.UpperLeft;
+            }
+
+            statTracker = stats.transform;
+        }
+
         IEnumerator FixScaleAfterFrame(int nlines)//needed to make the tab stuff work nicely
         {
             yield return new WaitForEndOfFrame();
+
             float intendedHeight = statsDisplayOverrideHeight.Value
-    ? textComponent.fontSize * (nlines + 1)
-    : textComponent.renderedHeight;
+                ? textComponent.fontSize * (nlines + 1)
+                : textComponent.renderedHeight;
+
             layoutElement.preferredHeight = intendedHeight;
         }
     }

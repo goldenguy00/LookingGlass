@@ -1,13 +1,9 @@
 ﻿using BepInEx.Configuration;
 using LookingGlass.Base;
-using LookingGlass.CommandWindowBlur;
-using LeTai.Asset.TranslucentImage;
 using MonoMod.RuntimeDetour;
 using RoR2;
 using RoR2.UI;
-using System;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using System.Collections;
 using RiskOfOptions.OptionConfigs;
