@@ -88,13 +88,12 @@ namespace LookingGlass
             unHiddenItems = new UnHiddenItems();
             buffDescriptions = new BuffDescriptionsClass();
             pickupNotifDurationClass = new PickupNotifDurationClass();
-            StartCoroutine(CheckPlayerStats());
             ItemCatalog.availability.CallWhenAvailable(() =>
             {
                 itemStats = new ItemStats();
             });
         }
-
+        float timer;
         private void Update()
         {
             if (ButtonsToCloseMenu.buttonsToClickOnMove.Count != 0 && Input.anyKeyDown && !Input.GetMouseButtonDown(0))
@@ -102,32 +101,26 @@ namespace LookingGlass
                 ButtonsToCloseMenu.CloseMenuAfterFrame();
             }
             dpsMeter.Update();
-        }
 
-        internal IEnumerator CheckPlayerStats()
-        {
-            while (true)
+            timer -= Time.deltaTime;
+            if (timer <= 0f)
             {
-                yield return new WaitForSeconds(StatsDisplayClass.statsDisplayUpdateInterval.Value);
-
-                if (StatsDisplayClass.statsDisplay.Value)
-                {
-                    yield return statsDisplayClass.CalculateStuff();
-                }
+                timer = StatsDisplayClass.statsDisplayUpdateInterval.Value;
+                StartCoroutine(statsDisplayClass.CalculateStuff());
             }
         }
 
         internal void hook_OnEnable(Action<ScoreboardController> orig, ScoreboardController self)
         {
             statsDisplayClass.scoreBoardOpen = true;
-            StartCoroutine(statsDisplayClass.CalculateStuff());
+            timer = 0f;
             orig(self);
         }
 
         internal void hook_OnDisable(Action<ScoreboardController> orig, ScoreboardController self)
         {
             statsDisplayClass.scoreBoardOpen = false;
-            StartCoroutine(statsDisplayClass.CalculateStuff());
+            timer = 0f;
             orig(self);
         }
     }

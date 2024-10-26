@@ -170,51 +170,8 @@ namespace LookingGlass.StatsDisplay
 
                 textComponent.text = stats;
                 s.Stop();
-                Log.Warning($"Original: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
-
-                //
-                //
-                //
-
-                s.Restart();
-                var stats2 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
-                foreach (var item in statDictionary.Keys)
-                {
-                    stats2 = Regex.Replace(stats2, $@"(?<!\\)\[{item}\]", statDictionary[item](cachedUserBody));
-                    s.Stop();
-                    yield return null;
-                    s.Start();
-                }
-
-                textComponent.text = stats2;
-                s.Stop();
-                Log.Warning($"Yielding: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
-
-                //
-                //
-                //
-
-                s.Restart();
-                var stats3 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
-                stats3 = Regex.Replace(stats3, String.Join("|", statDictionary.Keys.Select(Regex.Escape).ToArray()), m => statDictionary[m.Value](cachedUserBody), RegexOptions.IgnoreCase);
-
-                textComponent.text = stats3;
-                s.Stop();
-                Log.Warning($"InternetGuy: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
-
-                //
-                //
-                //
-
-                s.Restart();
-                var stats4 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
-                var sb = HG.StringBuilderPool.RentStringBuilder();
-                sb.AppendJoin("|", statDictionary.Keys.Select(s => $@"(?<!\\)\[{s}\]"));
-                stats3 = Regex.Replace(stats3, sb.ToString(), m => statDictionary[m.Value](cachedUserBody), RegexOptions.IgnoreCase);
-
-                textComponent.text = stats3;
-                s.Stop();
-                Log.Warning($"InternetGuy Again: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
+                Log.Error($"Original: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100f}");
+                yield return null;
 
                 //
                 //
@@ -225,15 +182,12 @@ namespace LookingGlass.StatsDisplay
                 foreach (var item in statDictionaryCompiled)
                 {
                     stats5 = item.Key.Replace(stats5, item.Value(cachedUserBody));
-                    s.Stop();
-                    yield return null;
-                    s.Start();
                 }
 
                 textComponent.text = stats5;
                 s.Stop();
-                Log.Warning($"Compiled: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100}");
-
+                Log.Warning($"Compiled: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100f}");
+                yield return null;
 
                 int nlines = statsDisplayOverrideHeight.Value
                     ? statsDisplayOverrideHeightValue.Value
