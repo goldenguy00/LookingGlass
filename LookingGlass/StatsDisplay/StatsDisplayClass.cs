@@ -32,7 +32,7 @@ namespace LookingGlass.StatsDisplay
         public static ConfigEntry<int> statsDisplayOverrideHeightValue;
         public static ConfigEntry<int> floatPrecision;
         public static Dictionary<string, Func<CharacterBody, string>> statDictionary = [];
-        public static Dictionary<Regex, Func<CharacterBody, string>> statDictionaryCompiled = [];
+        public static List<(Regex, Func<CharacterBody, string>)> statDictionaryCompiled = [];
         Transform statTracker = null;
         TextMeshProUGUI textComponent;
         GameObject textComponentGameObject;
@@ -94,7 +94,7 @@ namespace LookingGlass.StatsDisplay
                 "<size=120%>Portals:</size> \n" +
                 "<size=50%>Gold:[goldPortal] Shop:[shopPortal] Celestial:[msPortal] Void:[voidPortal]</size>"
                 , $"Secondary string for the stats display. You can customize this with Unity Rich Text if you want, see \n https://docs.unity3d.com/Packages/com.unity.textmeshpro@4.0/manual/RichText.html for more info. \nAvailable syntax for the [] stuff is: {syntaxList}");
-            StatsDisplayDefinitions.SetupDefs();
+            //StatsDisplayDefinitions.SetupDefs();
             StatsDisplayDefinitions.SetupDefsCompiled();
 
             var targetMethod = typeof(ScoreboardController).GetMethod(nameof(ScoreboardController.OnEnable), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -107,7 +107,7 @@ namespace LookingGlass.StatsDisplay
 
         private void BuiltInColors_SettingChanged(object sender, EventArgs e)
         {
-            StatsDisplayDefinitions.SetupDefs();
+            StatsDisplayDefinitions.SetupDefsCompiled();
         }
 
         public void SetupRiskOfOptions()
@@ -161,33 +161,14 @@ namespace LookingGlass.StatsDisplay
 
             if (textComponent && layoutElement)
             {
-                var s = Stopwatch.StartNew();
                 var stats = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
-                foreach (var item in statDictionary.Keys)
+                foreach ((var regex, var func) in statDictionaryCompiled)
                 {
-                    stats = Regex.Replace(stats, $@"(?<!\\)\[{item}\]", statDictionary[item](cachedUserBody));
+                    stats = regex.Replace(stats, func(cachedUserBody));
+                    yield return null;
                 }
 
                 textComponent.text = stats;
-                s.Stop();
-                Log.Error($"Original: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100f}");
-                yield return null;
-
-                //
-                //
-                //
-                s.Restart();
-                var stats5 = (useSecondaryStatsDisplay.Value && scoreBoardOpen) ? secondaryStatsDisplayString.Value : statsDisplayString.Value;
-
-                foreach (var item in statDictionaryCompiled)
-                {
-                    stats5 = item.Key.Replace(stats5, item.Value(cachedUserBody));
-                }
-
-                textComponent.text = stats5;
-                s.Stop();
-                Log.Warning($"Compiled: {(int)(s.Elapsed.TotalMilliseconds * 100) / 100f}");
-                yield return null;
 
                 int nlines = statsDisplayOverrideHeight.Value
                     ? statsDisplayOverrideHeightValue.Value
